@@ -8,9 +8,10 @@
 !define SAFENAME "DREAMIO AI-Powered Adventures"
 !define COMPANYNAME "Oleg Skutte"
 !define DESCRIPTION "DREAMIO is a 'choose-your-own-adventure' game where stories and visuals are dynamically created through the power of generative AI in response to your decisions. Explore endless worlds with limitless possibilities; go anywhere, do anything."
-!define VERSIONMAJOR 1
-!define VERSIONMINOR 0
-!define VERSIONBUILD 0
+
+; Variables for version information
+Var VersionString
+Var DownloadUrl
 
 ; Main Install settings
 Name "${APPNAME}"
@@ -75,7 +76,7 @@ FunctionEnd
 !insertmacro MUI_PAGE_WELCOME
 Page custom TermsPage LeaveTermsPage
 !insertmacro MUI_PAGE_DIRECTORY
-!insertmacro MUI_PAGE_COMPONENTS  ; Add this line to bring back the components page
+!insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
 !define MUI_FINISHPAGE_RUN "$INSTDIR\Dreamio.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Launch DREAMIO: AI-Powered Adventures"
@@ -104,8 +105,22 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
         Quit
     Delete "$INSTDIR\test.txt"
     
+    ; Download and parse the JSON file
+    INetC::get "https://games.skutteoleg.com/dreamio/downloads/Builds/Windows/version.json" "$TEMP\version.json" /END
+    Pop $0
+    StrCmp $0 "OK" +3
+        MessageBox MB_OK "Failed to download version information: $0"
+        Quit
+    
+    ; Parse JSON
+    nsJSON::Set /file "$TEMP\version.json"
+    nsJSON::Get `version` /END
+    Pop $VersionString
+    nsJSON::Get `latestUrl` /END
+    Pop $DownloadUrl
+    
     ; Download the zip file
-    INetC::get "https://games.skutteoleg.com/dreamio/downloads/Builds/Windows/latest.zip" "$TEMP\latest.zip" /END
+    INetC::get "$DownloadUrl" "$TEMP\latest.zip" /END
     Pop $0
     StrCmp $0 "OK" +3
         MessageBox MB_OK "Download failed: $0"
@@ -118,8 +133,9 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
         MessageBox MB_OK "Extraction failed: $0"
         Quit
     
-    ; Delete the temporary zip file
+    ; Delete the temporary files
     Delete "$TEMP\latest.zip"
+    Delete "$TEMP\version.json"
     
     ; Write uninstaller
     WriteUninstaller "$INSTDIR\Uninstall.exe"
@@ -131,9 +147,7 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "InstallLocation" "$INSTDIR"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayIcon" "$INSTDIR\Dreamio.exe"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "Publisher" "${COMPANYNAME}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayVersion" "${VERSIONMAJOR}.${VERSIONMINOR}.${VERSIONBUILD}"
-    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "VersionMajor" ${VERSIONMAJOR}
-    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "VersionMinor" ${VERSIONMINOR}
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayVersion" "$VersionString"
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoModify" 1
     WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoRepair" 1
 SectionEnd
