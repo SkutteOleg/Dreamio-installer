@@ -12,6 +12,7 @@
 ; Variables for version information
 Var VersionString
 Var DownloadUrl
+Var UninstallClearRegCheckbox
 
 ; Main Install settings
 Name "${APPNAME}"
@@ -30,6 +31,7 @@ RequestExecutionLevel admin
 
 ; Add the welcome image
 !define MUI_WELCOMEFINISHPAGE_BITMAP "welcome.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "welcome.bmp"
 
 ; Custom page for Terms and Privacy Policy
 Var Dialog
@@ -83,6 +85,8 @@ Page custom TermsPage LeaveTermsPage
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstall pages
+!insertmacro MUI_UNPAGE_WELCOME
+UninstPage custom un.CustomUninstPage
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 
@@ -92,11 +96,9 @@ Page custom TermsPage LeaveTermsPage
 ; Installer sections
 Section "DREAMIO: AI-Powered Adventures" SecCore
     SectionIn RO
-    ; Estimate the size (adjust this value based on your actual zip file size)
-    AddSize 3000000 ; This assumes a 200 MB installation, adjust as needed
+    AddSize 3000000 ; Adjust as needed
     SetOutPath $INSTDIR
     
-    ; Test write permissions
     FileOpen $0 "$INSTDIR\test.txt" w
     FileWrite $0 "Test"
     FileClose $0
@@ -105,42 +107,35 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
         Quit
     Delete "$INSTDIR\test.txt"
     
-    ; Download and parse the JSON file
     INetC::get "https://games.skutteoleg.com/dreamio/downloads/Builds/Windows/version.json" "$TEMP\version.json" /END
     Pop $0
     StrCmp $0 "OK" +3
         MessageBox MB_OK "Failed to download version information: $0"
         Quit
     
-    ; Parse JSON
     nsJSON::Set /file "$TEMP\version.json"
     nsJSON::Get `version` /END
     Pop $VersionString
     nsJSON::Get `latestUrl` /END
     Pop $DownloadUrl
     
-    ; Download the zip file
     INetC::get "$DownloadUrl" "$TEMP\latest.zip" /END
     Pop $0
     StrCmp $0 "OK" +3
         MessageBox MB_OK "Download failed: $0"
         Quit
     
-    ; Extract the zip file
     nsisunz::UnzipToLog "$TEMP\latest.zip" "$INSTDIR"
     Pop $0
     StrCmp $0 "success" +3
         MessageBox MB_OK "Extraction failed: $0"
         Quit
     
-    ; Delete the temporary files
     Delete "$TEMP\latest.zip"
     Delete "$TEMP\version.json"
     
-    ; Write uninstaller
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     
-    ; Registry information for add/remove programs
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${APPNAME}"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
@@ -172,21 +167,37 @@ LangString DESC_SecStartMenu ${LANG_ENGLISH} "Create a Start Menu entry."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenu} $(DESC_SecStartMenu)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
+; Uninstaller section
 Section "Uninstall"
-    ; Remove all files and folders
     RMDir /r "$INSTDIR\*.*"
     RMDir "$INSTDIR"
     
-    ; Remove desktop shortcut
     Delete "$DESKTOP\${SAFENAME}.lnk"
     
-    ; Remove start menu items
     RMDir /r "$SMPROGRAMS\${APPNAME}"
     
-    ; Remove registry keys
     DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
-    DeleteRegKey HKCU "SOFTWARE\Oleg Skutte\DREAMIO: AI-Powered Adventures"
     
-    ; Remove uninstaller
+    ${If} $UninstallClearRegCheckbox == ${BST_CHECKED}
+        DeleteRegKey HKCU "SOFTWARE\Oleg Skutte\DREAMIO: AI-Powered Adventures"
+    ${EndIf}
+    
     Delete "$INSTDIR\Uninstall.exe"
 SectionEnd
+
+; Uninstaller functions
+Function un.onInit
+    StrCpy $UninstallClearRegCheckbox ${BST_UNCHECKED}
+FunctionEnd
+
+Function un.CustomUninstPage
+    !insertmacro MUI_HEADER_TEXT "Uninstall Options" "Choose additional uninstall options"
+    nsDialogs::Create 1018
+    Pop $Dialog
+
+    ${NSD_CreateCheckbox} 0 0 100% 12u "Clear user settings (not recommended)"
+    Pop $UninstallClearRegCheckbox
+    ${NSD_SetState} $UninstallClearRegCheckbox ${BST_UNCHECKED}
+
+    nsDialogs::Show
+FunctionEnd
