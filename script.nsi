@@ -67,11 +67,11 @@ Function LeaveTermsPage
 FunctionEnd
 
 Function OpenPrivacyPolicy
-    ExecShell "open" "https://games.skutteoleg.com/dreamio/privacy-policy/"
+    ExecShell "open" "https://dreamio.xyz/privacy-policy/"
 FunctionEnd
 
 Function OpenTermsOfService
-    ExecShell "open" "https://games.skutteoleg.com/dreamio/terms-and-conditions/"
+    ExecShell "open" "https://dreamio.xyz/terms-and-conditions/"
 FunctionEnd
 
 ; Pages
@@ -107,7 +107,7 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
         Quit
     Delete "$INSTDIR\test.txt"
     
-    INetC::get "https://games.skutteoleg.com/dreamio/downloads/Builds/Windows/version.json" "$TEMP\version.json" /END
+    INetC::get "https://dreamio.xyz/downloads/Builds/Windows/version.json" "$TEMP\version.json" /END
     Pop $0
     StrCmp $0 "OK" +3
         MessageBox MB_OK "Failed to download version information: $0"
@@ -119,19 +119,19 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
     nsJSON::Get `latestUrl` /END
     Pop $DownloadUrl
     
-    INetC::get "$DownloadUrl" "$TEMP\latest.zip" /END
+    INetC::get "$DownloadUrl" "$TEMP\dreamio.zip" /END
     Pop $0
     StrCmp $0 "OK" +3
         MessageBox MB_OK "Download failed: $0"
         Quit
     
-    nsisunz::UnzipToLog "$TEMP\latest.zip" "$INSTDIR"
+    nsisunz::UnzipToLog "$TEMP\dreamio.zip" "$INSTDIR"
     Pop $0
     StrCmp $0 "success" +3
         MessageBox MB_OK "Extraction failed: $0"
         Quit
     
-    Delete "$TEMP\latest.zip"
+    Delete "$TEMP\dreamio.zip"
     Delete "$TEMP\version.json"
     
     WriteUninstaller "$INSTDIR\Uninstall.exe"
