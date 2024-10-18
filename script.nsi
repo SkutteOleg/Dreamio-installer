@@ -13,10 +13,11 @@
 Var VersionString
 Var DownloadUrl
 Var UninstallClearRegCheckbox
+Var InstallForAllUsers
+Var InstallDir
 
 ; Main Install settings
 Name "${APPNAME}"
-InstallDir "$PROGRAMFILES\${APPNAME}"
 OutFile "DreamioInstaller.exe"
 RequestExecutionLevel admin
 
@@ -74,9 +75,66 @@ Function OpenTermsOfService
     ExecShell "open" "https://dreamio.xyz/terms-and-conditions/"
 FunctionEnd
 
+; Custom page for installation type
+Function InstallTypePage
+    !insertmacro MUI_HEADER_TEXT "Installation Type" "Choose the installation type"
+    nsDialogs::Create 1018
+    Pop $Dialog
+
+    ${NSD_CreateRadioButton} 0 0 100% 12u "Install for all users (requires administrator privileges)"
+    Pop $InstallForAllUsers
+    ${NSD_Check} $InstallForAllUsers ; Default to checked for all users
+
+    ${NSD_CreateRadioButton} 0 20u 100% 12u "Install for current user only"
+    Pop $0
+
+    nsDialogs::Show
+FunctionEnd
+
+Function UpdateInstallDir
+    ${If} $InstallForAllUsers == ${BST_CHECKED}
+        StrCpy $INSTDIR "$PROGRAMFILES\${APPNAME}"
+    ${Else}
+        StrCpy $INSTDIR "$LOCALAPPDATA\${APPNAME}"
+    ${EndIf}
+FunctionEnd
+
+Function LeaveInstallTypePage
+    ${NSD_GetState} $InstallForAllUsers $0
+    ${If} $0 == ${BST_CHECKED}
+        StrCpy $InstallForAllUsers ${BST_CHECKED}
+        SetShellVarContext all
+    ${Else}
+        StrCpy $InstallForAllUsers ${BST_UNCHECKED}
+        SetShellVarContext current
+    ${EndIf}
+    Call UpdateInstallDir
+FunctionEnd
+
+Function DirectoryShow
+    Call UpdateInstallDir
+FunctionEnd
+
+Function DirectoryLeave
+    StrCpy $InstallDir $INSTDIR
+FunctionEnd
+
+Function .onInit
+    ; Set default to all users installation
+    StrCpy $InstallDir "$PROGRAMFILES\${APPNAME}"
+    StrCpy $INSTDIR "$PROGRAMFILES\${APPNAME}"
+    SetShellVarContext all
+    
+    ; Initialize $InstallForAllUsers
+    StrCpy $InstallForAllUsers ${BST_CHECKED}
+FunctionEnd
+
 ; Pages
 !insertmacro MUI_PAGE_WELCOME
 Page custom TermsPage LeaveTermsPage
+Page custom InstallTypePage LeaveInstallTypePage
+!define MUI_PAGE_CUSTOMFUNCTION_PRE DirectoryShow
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirectoryLeave
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_INSTFILES
@@ -96,7 +154,7 @@ UninstPage custom un.CustomUninstPage
 ; Installer sections
 Section "DREAMIO: AI-Powered Adventures" SecCore
     SectionIn RO
-    AddSize 3000000 ; Adjust as needed
+    AddSize 3500000 ; Adjust as needed
     SetOutPath $INSTDIR
     
     FileOpen $0 "$INSTDIR\test.txt" w
@@ -136,15 +194,27 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
     
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${APPNAME}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "InstallLocation" "$INSTDIR"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayIcon" "$INSTDIR\Dreamio.exe"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "Publisher" "${COMPANYNAME}"
-    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayVersion" "$VersionString"
-    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoModify" 1
-    WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoRepair" 1
+    ${If} $InstallForAllUsers == ${BST_CHECKED}
+        WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${APPNAME}"
+        WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+        WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
+        WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "InstallLocation" "$INSTDIR"
+        WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayIcon" "$INSTDIR\Dreamio.exe"
+        WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "Publisher" "${COMPANYNAME}"
+        WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayVersion" "$VersionString"
+        WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoModify" 1
+        WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoRepair" 1
+    ${Else}
+        WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${APPNAME}"
+        WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
+        WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
+        WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "InstallLocation" "$INSTDIR"
+        WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayIcon" "$INSTDIR\Dreamio.exe"
+        WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "Publisher" "${COMPANYNAME}"
+        WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayVersion" "$VersionString"
+        WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoModify" 1
+        WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "NoRepair" 1
+    ${EndIf}
 SectionEnd
 
 Section "Desktop Shortcut" SecDesktop
@@ -177,6 +247,7 @@ Section "Uninstall"
     RMDir /r "$SMPROGRAMS\${APPNAME}"
     
     DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
+    DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
     
     ${If} $UninstallClearRegCheckbox == ${BST_CHECKED}
         DeleteRegKey HKCU "SOFTWARE\Oleg Skutte\DREAMIO: AI-Powered Adventures"
