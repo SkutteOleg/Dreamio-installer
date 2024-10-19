@@ -1,0 +1,143 @@
+name: NSIS Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install NSIS Plugins
+        run: |
+          $ZipDLLUrl = "https://nsis.sourceforge.io/mediawiki/images/d/d9/ZipDLL.zip"
+          $InetcUrl = "https://nsis.sourceforge.io/mediawiki/images/c/c9/Inetc.zip"
+          $NsJSONUrl = "https://nsis.sourceforge.io/mediawiki/images/f/f0/NsJSON.zip"
+          $NSISunzUUrl = "https://nsis.sourceforge.io/mediawiki/images/5/5a/NSISunzU.zip"
+          $ZipDLLPath = "$env:TEMP\ZipDLL.zip"
+          $InetcPath = "$env:TEMP\Inetc.zip"
+          $NsJSONPath = "$env:TEMP\NsJSON.zip"
+          $NSISunzUPath = "$env:TEMP\NSISunzU.zip"
+
+          # Find NSIS installation path
+          $NSISPath = (Get-Command makensis.exe).Source | Split-Path -Parent
+          Write-Host "NSIS installation path: $NSISPath"
+
+          # Download and install ZipDLL
+          try {
+              Invoke-WebRequest -Uri $ZipDLLUrl -OutFile $ZipDLLPath
+              Expand-Archive -Path $ZipDLLPath -DestinationPath "$env:TEMP\ZipDLL" -Force
+          } catch {
+              Write-Host "Error downloading or extracting ZipDLL: $_"
+              exit 1
+          }
+
+          # Ensure directories exist
+          $PluginsPath = Join-Path $NSISPath "Plugins"
+          $IncludePath = Join-Path $NSISPath "Include"
+          New-Item -ItemType Directory -Force -Path $PluginsPath | Out-Null
+          New-Item -ItemType Directory -Force -Path $IncludePath | Out-Null
+
+          # Move ZipDLL files
+          try {
+              Move-Item -Path "$env:TEMP\ZipDLL\ZipDLL.dll" -Destination $PluginsPath -Force
+              Move-Item -Path "$env:TEMP\ZipDLL\ZipDLL.nsh" -Destination $IncludePath -Force
+          } catch {
+              Write-Host "Error moving ZipDLL files: $_"
+              exit 1
+          }
+
+          # Download and install Inetc
+          try {
+              Invoke-WebRequest -Uri $InetcUrl -OutFile $InetcPath
+              Expand-Archive -Path $InetcPath -DestinationPath $NSISPath -Force
+          } catch {
+              Write-Host "Error downloading or extracting Inetc: $_"
+              exit 1
+          }
+
+          # Download and install NsJSON
+          try {
+              Invoke-WebRequest -Uri $NsJSONUrl -OutFile $NsJSONPath
+              Expand-Archive -Path $NsJSONPath -DestinationPath $NSISPath -Force
+          } catch {
+              Write-Host "Error downloading or extracting NsJSON: $_"
+              exit 1
+          }
+
+          # Download and install NSISunzU
+          try {
+              Invoke-WebRequest -Uri $NSISunzUUrl -OutFile $NSISunzUPath
+              Expand-Archive -Path $NSISunzUPath -DestinationPath "$env:TEMP\NSISunzU" -Force
+
+              # Create necessary directories
+              $x86UnicodePluginsPath = Join-Path $NSISPath "Plugins\x86-unicode"
+              $amd64UnicodePluginsPath = Join-Path $NSISPath "Plugins\amd64-unicode"
+              New-Item -ItemType Directory -Force -Path $x86UnicodePluginsPath | Out-Null
+              New-Item -ItemType Directory -Force -Path $amd64UnicodePluginsPath | Out-Null
+
+              # Copy nsisunz.dll to both directories
+              Copy-Item -Path "$env:TEMP\NSISunzU\NSISunzU\Plugin unicode\nsisunz.dll" -Destination $x86UnicodePluginsPath -Force
+              Copy-Item -Path "$env:TEMP\NSISunzU\NSISunzU\Plugin unicode\nsisunz.dll" -Destination $amd64UnicodePluginsPath -Force
+          } catch {
+              Write-Host "Error downloading, extracting, or installing NSISunzU: $_"
+              exit 1
+          }
+
+          Write-Host "ZipDLL, Inetc, NsJSON, and NSISunzU plugins installed successfully"
+
+      - name: Build Installer
+        run: |
+          makensis.exe /V4 /X"SetCompressor /FINAL /SOLID lzma" /X"SetCompressorDictSize 64" /X"SetDatablockOptimize ON" script.nsi
+
+      - name: Calculate SHA256
+        id: sha256
+        run: |
+          $hash = (Get-FileHash -Path .\DreamioInstaller.exe -Algorithm SHA256).Hash.ToLower()
+          echo "SHA256=$hash" >> $env:GITHUB_OUTPUT
+
+      - name: Get current date and short hash
+        id: date_hash
+        run: |
+          $date = Get-Date -Format "yyyy-MM-dd"
+          $shortHash = "${{ github.sha }}".Substring(0, 7)
+          echo "DATE=$date" >> $env:GITHUB_OUTPUT
+          echo "SHORT_HASH=$shortHash" >> $env:GITHUB_OUTPUT
+
+      - name: Upload Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DreamioInstaller
+          path: DreamioInstaller.exe
+
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.date_hash.outputs.DATE }}-${{ steps.date_hash.outputs.SHORT_HASH }}
+          release_name: ${{ steps.date_hash.outputs.DATE }}-${{ steps.date_hash.outputs.SHORT_HASH }}
+          body: |
+            ### SHA256:
+            ${{ steps.sha256.outputs.SHA256 }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./DreamioInstaller.exe
+          asset_name: DreamioInstaller.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
+            
