@@ -1,8 +1,5 @@
 ; DREAMIO: AI-Powered Adventures Installer Script
 
-!include "LogicLib.nsh"
-!include /CHARSET=CP1252 zipdll.nsh
-
 ; Define constants
 !define APPNAME "DREAMIO: AI-Powered Adventures"
 !define SAFENAME "DREAMIO AI-Powered Adventures"
