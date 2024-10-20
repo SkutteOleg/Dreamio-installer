@@ -21,18 +21,17 @@ To manually build the DREAMIO installer, follow these steps:
 1. Install NSIS (Nullsoft Scriptable Install System) on your Windows machine.
 
 2. Install the required NSIS plugins:
-    - ZipDLL
     - Inetc
     - NsJSON
     - NSISunzU
 
-   You can download these plugins from the NSIS website or use the URLs provided in the YAML file.
+   You can download these plugins from the NSIS website or use the URLs provided in the [YAML workflow file](.github/workflows/nsis-build.yml).
 
 3. Place the plugin files in the appropriate NSIS directories:
     - `.dll` files go in the `Plugins` directory
     - `.nsh` files go in the `Include` directory
 
-4. Open a command prompt and navigate to the directory containing the `script.nsi` file.
+4. Clone the repository and navigate to the directory containing the `script.nsi` file.
 
 5. Run the following command to build the installer:
    ```

@@ -15,11 +15,9 @@ jobs:
 
       - name: Install NSIS Plugins
         run: |
-          $ZipDLLUrl = "https://nsis.sourceforge.io/mediawiki/images/d/d9/ZipDLL.zip"
           $InetcUrl = "https://nsis.sourceforge.io/mediawiki/images/c/c9/Inetc.zip"
           $NsJSONUrl = "https://nsis.sourceforge.io/mediawiki/images/f/f0/NsJSON.zip"
           $NSISunzUUrl = "https://nsis.sourceforge.io/mediawiki/images/5/5a/NSISunzU.zip"
-          $ZipDLLPath = "$env:TEMP\ZipDLL.zip"
           $InetcPath = "$env:TEMP\Inetc.zip"
           $NsJSONPath = "$env:TEMP\NsJSON.zip"
           $NSISunzUPath = "$env:TEMP\NSISunzU.zip"
@@ -28,29 +26,11 @@ jobs:
           $NSISPath = (Get-Command makensis.exe).Source | Split-Path -Parent
           Write-Host "NSIS installation path: $NSISPath"
 
-          # Download and install ZipDLL
-          try {
-              Invoke-WebRequest -Uri $ZipDLLUrl -OutFile $ZipDLLPath
-              Expand-Archive -Path $ZipDLLPath -DestinationPath "$env:TEMP\ZipDLL" -Force
-          } catch {
-              Write-Host "Error downloading or extracting ZipDLL: $_"
-              exit 1
-          }
-
           # Ensure directories exist
           $PluginsPath = Join-Path $NSISPath "Plugins"
           $IncludePath = Join-Path $NSISPath "Include"
           New-Item -ItemType Directory -Force -Path $PluginsPath | Out-Null
           New-Item -ItemType Directory -Force -Path $IncludePath | Out-Null
-
-          # Move ZipDLL files
-          try {
-              Move-Item -Path "$env:TEMP\ZipDLL\ZipDLL.dll" -Destination $PluginsPath -Force
-              Move-Item -Path "$env:TEMP\ZipDLL\ZipDLL.nsh" -Destination $IncludePath -Force
-          } catch {
-              Write-Host "Error moving ZipDLL files: $_"
-              exit 1
-          }
 
           # Download and install Inetc
           try {
@@ -89,7 +69,7 @@ jobs:
               exit 1
           }
 
-          Write-Host "ZipDLL, Inetc, NsJSON, and NSISunzU plugins installed successfully"
+          Write-Host "Inetc, NsJSON, and NSISunzU plugins installed successfully"
 
       - name: Build Installer
         run: |
@@ -140,7 +120,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload Release Assets
+      - name: Upload Release Asset (EXE)
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/upload-release-asset@v1
         env:
@@ -151,7 +131,7 @@ jobs:
           asset_name: DreamioInstaller.exe
           asset_content_type: application/vnd.microsoft.portable-executable
 
-      - name: Upload ZIP Release Asset
+      - name: Upload Release Asset (ZIP)
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/upload-release-asset@v1
         env:
