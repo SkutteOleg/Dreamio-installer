@@ -24,8 +24,8 @@ RequestExecutionLevel admin
 
 ; Define UI settings
 !define MUI_ABORTWARNING
-!define MUI_ICON "icon.ico"
-!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+!define MUI_ICON "installer.ico"
+!define MUI_UNICON "uninstaller.ico"
 
 ; Add the welcome image
 !define MUI_WELCOMEFINISHPAGE_BITMAP "welcome.bmp"
