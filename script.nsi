@@ -80,11 +80,11 @@ Function InstallTypePage
 
     ${NSD_CreateRadioButton} 0 0 100% 12u "Install for all users (requires administrator privileges)"
     Pop $InstallForAllUsers
-    ${NSD_Check} $InstallForAllUsers ; Default to checked for all users
-
+    
     ${NSD_CreateRadioButton} 0 20u 100% 12u "Install for current user only"
     Pop $0
-
+    ${NSD_Check} $0 ; Default to checked for current user
+    
     nsDialogs::Show
 FunctionEnd
 
@@ -117,13 +117,13 @@ Function DirectoryLeave
 FunctionEnd
 
 Function .onInit
-    ; Set default to all users installation
-    StrCpy $InstallDir "$PROGRAMFILES\${APPNAME}"
-    StrCpy $INSTDIR "$PROGRAMFILES\${APPNAME}"
-    SetShellVarContext all
+    ; Set default to current user installation
+    StrCpy $InstallDir "$LOCALAPPDATA\${APPNAME}"
+    StrCpy $INSTDIR "$LOCALAPPDATA\${APPNAME}"
+    SetShellVarContext current
     
     ; Initialize $InstallForAllUsers
-    StrCpy $InstallForAllUsers ${BST_CHECKED}
+    StrCpy $InstallForAllUsers ${BST_UNCHECKED}
 FunctionEnd
 
 ; Pages
