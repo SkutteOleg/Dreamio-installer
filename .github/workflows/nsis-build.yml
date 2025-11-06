@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: Install NSIS
+        uses: repolevedavaj/install-nsis@v1.1.0
+        with:
+          nsis-version: '3.11'
+
       - name: Install NSIS Plugins
         run: |
           $InetcUrl = "https://nsis.sourceforge.io/mediawiki/images/c/c9/Inetc.zip"
