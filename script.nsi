@@ -6,9 +6,8 @@
 !define COMPANYNAME "Oleg Skutte"
 !define DESCRIPTION "DREAMIO is a 'choose-your-own-adventure' game where stories and visuals are dynamically created through the power of generative AI in response to your decisions. Explore endless worlds with limitless possibilities; go anywhere, do anything."
 
-; Variables for version information
+; Variables
 Var VersionString
-Var DownloadUrl
 Var UninstallClearRegCheckbox
 Var InstallForAllUsers
 Var InstallDir
@@ -151,7 +150,7 @@ UninstPage custom un.CustomUninstPage
 ; Installer sections
 Section "DREAMIO: AI-Powered Adventures" SecCore
     SectionIn RO
-    AddSize 3500000 ; Adjust as needed
+    AddSize 4500000
     SetOutPath $INSTDIR
     
     FileOpen $0 "$INSTDIR\test.txt" w
@@ -162,33 +161,40 @@ Section "DREAMIO: AI-Powered Adventures" SecCore
         Quit
     Delete "$INSTDIR\test.txt"
     
-    INetC::get "https://dreamio.xyz/downloads/Builds/Windows/version.json" "$TEMP\version.json" /END
+    INetC::get "https://github.com/SkutteOleg/Dreamio-updater/releases/latest/download/DreamioUpdater.zip" "$TEMP\DreamioUpdater.zip" /END
     Pop $0
     StrCmp $0 "OK" +3
-        MessageBox MB_OK "Failed to download version information: $0"
+        MessageBox MB_OK "Updater download failed: $0"
         Quit
     
-    nsJSON::Set /file "$TEMP\version.json"
-    nsJSON::Get `version` /END
-    Pop $VersionString
-    nsJSON::Get `latestUrl` /END
-    Pop $DownloadUrl
-    
-    INetC::get "$DownloadUrl" "$TEMP\dreamio.zip" /END
-    Pop $0
-    StrCmp $0 "OK" +3
-        MessageBox MB_OK "Download failed: $0"
-        Quit
-    
-    nsisunz::UnzipToLog "$TEMP\dreamio.zip" "$INSTDIR"
+    CreateDirectory "$TEMP\DreamioUpdater"
+    nsisunz::UnzipToLog "$TEMP\DreamioUpdater.zip" "$TEMP\DreamioUpdater"
     Pop $0
     StrCmp $0 "success" +3
-        MessageBox MB_OK "Extraction failed: $0"
+        MessageBox MB_OK "Updater extraction failed: $0"
         Quit
+
+    Delete "$INSTDIR\update.zip" ; Delete any leftover corrupt update files from previous failed attempts
+    ExecWait '"$TEMP\DreamioUpdater\DreamioUpdater.exe"' $0
+    IntCmp $0 0 success
     
-    Delete "$TEMP\dreamio.zip"
-    Delete "$TEMP\version.json"
+    ; --- Failure Path ---
+    MessageBox MB_ICONSTOP "The updater failed to complete successfully. This could be due to a premature shutdown or another issue. Please try running the installer again."
+    Delete "$TEMP\DreamioUpdater.zip"
+    RMDir /r "$TEMP\DreamioUpdater"
+    Quit
     
+success:
+    ; --- Success Path ---
+    Delete "$TEMP\DreamioUpdater.zip"
+    RMDir /r "$TEMP\DreamioUpdater"
+    
+    # Read version from version.json
+    
+    nsJSON::Set /file "$INSTDIR\version.json"
+    nsJSON::Get `version` /END
+    Pop $VersionString
+
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     
     ${If} $InstallForAllUsers == ${BST_CHECKED}
